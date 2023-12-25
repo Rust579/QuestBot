@@ -1,19 +1,11 @@
 package app
 
 import (
-	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 const (
 	// Messages
-	MessageStartHead       = "Для успешной привязки вашего аккаунта Telegram к аккаунту UniOne, вам необходимо ввести код\n"
-	MessageStartPost       = "\nв соответствующую форму на платформе\\. После ввода кода, ваш аккаунт Telegram будет надежно связан с аккаунтом UniOne, что позволит вам использовать его для авторизации на платформе\\."
-	MessageSuccessBind     = "Ваш аккаунт Telegram успешно привязан к аккаунту UniOne. Чтобы отвязать аккаунт Telegram заблокируйте этого бота и авторизуйтесь на платформе по коду."
-	MessageConfirmCodeHead = "*Код подтверждения для входа в UniOne:*\n"
-	MessageConfirmCodePost = "\n*Никому* не давайте код, даже если его требуют от имени Telegram\\! Этот код используется для входа в Ваш аккаунт в UniOne\\. Он никогда не нужен для чего\\-то еще\\. Если Вы не запрашивали код для входа, проигнорируйте это сообщение\\."
-	MessageAlreadyExist    = "Ваш аккаунт Telegram уже привязан к аккаунту UniOne\\. Чтобы отвязать аккаунт Telegram заблокируйте этого бота и авторизуйтесь на платформе по коду\\."
-	MessageBindCode        = "*Код подтверждения для привязки аккаунта Telegram в UniOne:*\n"
 
 	//Command
 	CommandGetCode = "Получить код"
@@ -59,7 +51,7 @@ func (b *Bot) initUpdatesChan() tgbotapi.UpdatesChannel {
 	return b.bot.GetUpdatesChan(u)
 }
 
-func (b *Bot) SendCode(ChatID int64, Code string) error {
+/*func (b *Bot) SendCode(ChatID int64, Code string) error {
 
 	msg := tgbotapi.NewMessage(ChatID, MessageConfirmCodeHead+fmt.Sprintf("\n`%v`\n", Code)+MessageConfirmCodePost)
 	msg.ParseMode = tgbotapi.ModeMarkdownV2
@@ -89,7 +81,7 @@ func (b *Bot) SendDone(ChatID int64) error {
 		return err
 	}
 	return nil
-}
+}*/
 
 func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
@@ -100,7 +92,7 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 	)
 	if message.Command() == CommandStart {
 
-		msg := tgbotapi.NewMessage(message.From.ID, "Здарова")
+		msg := tgbotapi.NewMessage(message.From.ID, "Здарова, ты попал в квест чувааааааак")
 		msg.ReplyMarkup = numericKeyboard
 		msg.ParseMode = tgbotapi.ModeMarkdownV2
 
@@ -109,10 +101,9 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
 		}
 	}
+	if message.Command() == "vvv" {
 
-	if message.Command() == "Пук" {
-
-		msg := tgbotapi.NewMessage(message.From.ID, "Сам ты пук")
+		msg := tgbotapi.NewMessage(message.From.ID, "www")
 		msg.ReplyMarkup = numericKeyboard
 		msg.ParseMode = tgbotapi.ModeMarkdownV2
 
@@ -121,7 +112,6 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
 		}
 	}
-
 	return nil
 }
 
@@ -141,7 +131,7 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 
 		if update.Message.Text == CommandGetCode {
 
-			msg := tgbotapi.NewMessage(update.Message.From.ID, MessageAlreadyExist)
+			msg := tgbotapi.NewMessage(update.Message.From.ID, "MessageAlreadyExist")
 			msg.ParseMode = tgbotapi.ModeMarkdownV2
 
 			if _, err := b.bot.Send(msg); err != nil {
@@ -149,5 +139,16 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 			continue
 
 		}
+		if update.Message.Text == "пук" {
+
+			msg := tgbotapi.NewMessage(update.Message.From.ID, "Сам ты пук")
+			msg.ParseMode = tgbotapi.ModeMarkdownV2
+
+			if _, err := b.bot.Send(msg); err != nil {
+			}
+			continue
+
+		}
+
 	}
 }
