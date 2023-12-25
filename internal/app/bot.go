@@ -26,9 +26,9 @@ type Bot struct {
 
 var BotApi Bot
 
-func InitBotApi(token string) error {
+func InitBotApi() error {
 
-	bot, err := tgbotapi.NewBotAPI(token)
+	bot, err := tgbotapi.NewBotAPI("6583722718:AAE9b84iNSj_YHFEOBad1P_8my7IgwyD7gg")
 	if err != nil {
 		return err
 	}
@@ -99,23 +99,26 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 		),
 	)
 	if message.Command() == CommandStart {
-		ok := pullsTelegram.CheckExistTelegramId(message.From.ID)
-		if !ok {
-			msg := tgbotapi.NewMessage(message.From.ID, MessageStartHead+fmt.Sprintf("\n`%v`\n", message.Chat.ID)+MessageStartPost)
-			msg.ReplyMarkup = numericKeyboard
-			msg.ParseMode = tgbotapi.ModeMarkdownV2
 
-			if _, err := b.bot.Send(msg); err != nil {
-				return err
-			}
-		} else {
-			msg := tgbotapi.NewMessage(message.From.ID, MessageAlreadyExist)
-			msg.ReplyMarkup = numericKeyboard
-			msg.ParseMode = tgbotapi.ModeMarkdownV2
+		msg := tgbotapi.NewMessage(message.From.ID, "Здарова")
+		msg.ReplyMarkup = numericKeyboard
+		msg.ParseMode = tgbotapi.ModeMarkdownV2
 
-			if _, err := b.bot.Send(msg); err != nil {
-				return err
-			}
+		if _, err := b.bot.Send(msg); err != nil {
+			return err
+
+		}
+	}
+
+	if message.Command() == "Пук" {
+
+		msg := tgbotapi.NewMessage(message.From.ID, "Сам ты пук")
+		msg.ReplyMarkup = numericKeyboard
+		msg.ParseMode = tgbotapi.ModeMarkdownV2
+
+		if _, err := b.bot.Send(msg); err != nil {
+			return err
+
 		}
 	}
 
@@ -137,22 +140,14 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 		}
 
 		if update.Message.Text == CommandGetCode {
-			ok := pullsTelegram.CheckExistTelegramId(update.Message.From.ID)
-			if !ok {
-				msg := tgbotapi.NewMessage(update.Message.From.ID, MessageStartHead+fmt.Sprintf("\n`%v`\n", update.Message.Chat.ID)+MessageStartPost)
-				msg.ParseMode = tgbotapi.ModeMarkdownV2
 
-				if _, err := b.bot.Send(msg); err != nil {
-				}
-				continue
-			} else {
-				msg := tgbotapi.NewMessage(update.Message.From.ID, MessageAlreadyExist)
-				msg.ParseMode = tgbotapi.ModeMarkdownV2
+			msg := tgbotapi.NewMessage(update.Message.From.ID, MessageAlreadyExist)
+			msg.ParseMode = tgbotapi.ModeMarkdownV2
 
-				if _, err := b.bot.Send(msg); err != nil {
-				}
-				continue
+			if _, err := b.bot.Send(msg); err != nil {
 			}
+			continue
+
 		}
 	}
 }
