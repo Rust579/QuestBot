@@ -17,7 +17,7 @@ func Run() {
 	if err := tgmanager.InitTgApi(c); err != nil {
 		log.Fatalln("manager_bot не запустился блет")
 	}
-	log.Println("@taptykovo_bot запустился")
+	log.Println("Боты запустились")
 
 	<-gfsd
 }

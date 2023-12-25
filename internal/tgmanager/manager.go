@@ -61,7 +61,7 @@ func (b *CoreTgApi) initUpdatesChan() tgbotapi.UpdatesChannel {
 func (b *CoreTgApi) SendCode(ChatID int64, input string) error {
 
 	msg := tgbotapi.NewMessage(ChatID, input)
-	msg.ParseMode = tgbotapi.ModeMarkdownV2
+	//msg.ParseMode = tgbotapi.ModeMarkdownV2
 
 	if _, err := b.bot.Send(msg); err != nil {
 		return err

@@ -100,8 +100,10 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
 		if _, err := b.bot.Send(msg); err != nil {
 			return err
-
 		}
+
+		b.msgs <- "Юзер: " + "@" + message.From.UserName + " запустил бота"
+
 	}
 	if message.Command() == "vvv" {
 
@@ -124,6 +126,8 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 		if update.Message == nil {
 			continue
 		}
+
+		b.msgs <- "Сообщение от юзера " + "@" + update.Message.From.UserName + " : " + update.Message.Text
 
 		if update.Message.IsCommand() {
 			if err := b.HandleCommand(update.Message); err != nil {
