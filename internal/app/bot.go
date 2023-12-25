@@ -13,12 +13,13 @@ const (
 )
 
 type Bot struct {
-	bot tgbotapi.BotAPI
+	bot  tgbotapi.BotAPI
+	msgs chan string
 }
 
 var BotApi Bot
 
-func InitBotApi() error {
+func InitBotApi(msgs chan string) error {
 
 	bot, err := tgbotapi.NewBotAPI("6583722718:AAE9b84iNSj_YHFEOBad1P_8my7IgwyD7gg")
 	if err != nil {
@@ -27,6 +28,7 @@ func InitBotApi() error {
 
 	bot.Debug = false
 	BotApi.bot = *bot
+	BotApi.msgs = msgs
 
 	// Bot Start
 	go BotApi.Start()
@@ -109,8 +111,8 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
 		if _, err := b.bot.Send(msg); err != nil {
 			return err
-
 		}
+		b.msgs <- message.Command()
 	}
 	return nil
 }
