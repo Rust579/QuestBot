@@ -19,6 +19,8 @@ func ProcessMessagesText(txt string) string {
 		return "Сам думай"
 	case MsgStageOne:
 		return "Молодец, вот тебе следующие координаты: 666"
+	case "файл":
+		return "файл"
 	}
 	return ""
 }
