@@ -40,7 +40,7 @@ func (b *CoreTgApi) Start() {
 
 	go func() {
 		for msg := range b.msgs {
-			b.SendCode(b.ChatID, msg)
+			b.SendMsg(b.ChatID, msg)
 		}
 	}()
 
@@ -56,39 +56,6 @@ func (b *CoreTgApi) initUpdatesChan() tgbotapi.UpdatesChannel {
 	u.Timeout = 60
 
 	return b.bot.GetUpdatesChan(u)
-}
-
-func (b *CoreTgApi) SendCode(ChatID int64, input string) error {
-
-	msg := tgbotapi.NewMessage(ChatID, input)
-	//msg.ParseMode = tgbotapi.ModeMarkdownV2
-
-	if _, err := b.bot.Send(msg); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (b *CoreTgApi) HandleCommand(message *tgbotapi.Message) error {
-
-	numericKeyboard := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(CommandGetCode),
-		),
-	)
-	if message.Command() == CommandStart {
-
-		msg := tgbotapi.NewMessage(b.ChatID, "Здарова")
-		msg.ReplyMarkup = numericKeyboard
-		msg.ParseMode = tgbotapi.ModeMarkdownV2
-
-		if _, err := b.bot.Send(msg); err != nil {
-			return err
-
-		}
-	}
-
-	return nil
 }
 
 func (b *CoreTgApi) HandleUpdates(updates tgbotapi.UpdatesChannel) {
@@ -116,4 +83,37 @@ func (b *CoreTgApi) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 
 		}
 	}
+}
+
+func (b *CoreTgApi) HandleCommand(message *tgbotapi.Message) error {
+
+	numericKeyboard := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(CommandGetCode),
+		),
+	)
+	if message.Command() == CommandStart {
+
+		msg := tgbotapi.NewMessage(b.ChatID, "Здарова")
+		msg.ReplyMarkup = numericKeyboard
+		msg.ParseMode = tgbotapi.ModeMarkdownV2
+
+		if _, err := b.bot.Send(msg); err != nil {
+			return err
+
+		}
+	}
+
+	return nil
+}
+
+func (b *CoreTgApi) SendMsg(ChatID int64, input string) error {
+
+	msg := tgbotapi.NewMessage(ChatID, input)
+	//msg.ParseMode = tgbotapi.ModeMarkdownV2
+
+	if _, err := b.bot.Send(msg); err != nil {
+		return err
+	}
+	return nil
 }
