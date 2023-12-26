@@ -1,15 +1,15 @@
 package app
 
 import (
+	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"tgbot/internal/service/logic"
 )
 
 const (
-	// Messages
-
 	//Command
-	CommandGetCode = "Получить код"
-	CommandStart   = "start"
+	CommandGetCode   = "Получить код"
+	CommandReference = "Справка"
 )
 
 type Bot struct {
@@ -53,6 +53,70 @@ func (b *Bot) initUpdatesChan() tgbotapi.UpdatesChannel {
 	return b.bot.GetUpdatesChan(u)
 }
 
+func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
+
+	/*numericKeyboardStart := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(CommandGetCode),
+		),
+	)*/
+
+	numericKeyboard := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(CommandGetCode),
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(CommandReference),
+		),
+	)
+
+	//b.msgs <- "@" + message.From.UserName + " запустил бота"
+	fmt.Println("@" + message.From.UserName + " запустил бота")
+
+	msg := logic.ProcessMessagesCommand(message.Command())
+
+	msgBot := tgbotapi.NewMessage(message.From.ID, msg)
+	msgBot.ReplyMarkup = numericKeyboard
+	//msgBot.ParseMode = tgbotapi.ModeMarkdownV2
+
+	if _, err := b.bot.Send(msgBot); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
+
+	for update := range updates {
+
+		if update.Message == nil {
+			continue
+		}
+
+		if update.Message.IsCommand() {
+			if err := b.HandleCommand(update.Message); err != nil {
+				//b.msgs <- "Ошибка HandleCommand у " + "@" + update.Message.From.UserName + " " + err.Error()
+			}
+			continue
+		}
+
+		//b.msgs <- "Сообщение от " + "@" + update.Message.From.UserName + " : " + update.Message.Text
+		fmt.Println("Сообщение от " + "@" + update.Message.From.UserName + " : " + update.Message.Text)
+
+		msg := logic.ProcessMessagesText(update.Message.Text)
+
+		msgBot := tgbotapi.NewMessage(update.Message.From.ID, msg)
+		msgBot.ParseMode = tgbotapi.ModeMarkdownV2
+
+		if _, err := b.bot.Send(msgBot); err != nil {
+			//b.msgs <- "Ошибка отправки сообщения " + "@" + update.Message.From.UserName + " " + err.Error()
+		}
+		continue
+
+	}
+}
+
 /*func (b *Bot) SendCode(ChatID int64, Code string) error {
 
 	msg := tgbotapi.NewMessage(ChatID, MessageConfirmCodeHead+fmt.Sprintf("\n`%v`\n", Code)+MessageConfirmCodePost)
@@ -84,77 +148,3 @@ func (b *Bot) SendDone(ChatID int64) error {
 	}
 	return nil
 }*/
-
-func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
-
-	numericKeyboard := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(CommandGetCode),
-		),
-	)
-	if message.Command() == CommandStart {
-
-		msg := tgbotapi.NewMessage(message.From.ID, "Здарова, ты попал в квест чувааааааак")
-		msg.ReplyMarkup = numericKeyboard
-		msg.ParseMode = tgbotapi.ModeMarkdownV2
-
-		if _, err := b.bot.Send(msg); err != nil {
-			return err
-		}
-
-		b.msgs <- "Юзер: " + "@" + message.From.UserName + " запустил бота"
-
-	}
-	if message.Command() == "vvv" {
-
-		msg := tgbotapi.NewMessage(message.From.ID, "www")
-		msg.ReplyMarkup = numericKeyboard
-		msg.ParseMode = tgbotapi.ModeMarkdownV2
-
-		if _, err := b.bot.Send(msg); err != nil {
-			return err
-		}
-		b.msgs <- message.Command()
-	}
-	return nil
-}
-
-func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
-
-	for update := range updates {
-
-		if update.Message == nil {
-			continue
-		}
-
-		b.msgs <- "Сообщение от юзера " + "@" + update.Message.From.UserName + " : " + update.Message.Text
-
-		if update.Message.IsCommand() {
-			if err := b.HandleCommand(update.Message); err != nil {
-			}
-			continue
-		}
-
-		if update.Message.Text == CommandGetCode {
-
-			msg := tgbotapi.NewMessage(update.Message.From.ID, "MessageAlreadyExist")
-			msg.ParseMode = tgbotapi.ModeMarkdownV2
-
-			if _, err := b.bot.Send(msg); err != nil {
-			}
-			continue
-
-		}
-		if update.Message.Text == "пук" {
-
-			msg := tgbotapi.NewMessage(update.Message.From.ID, "Сам ты пук")
-			msg.ParseMode = tgbotapi.ModeMarkdownV2
-
-			if _, err := b.bot.Send(msg); err != nil {
-			}
-			continue
-
-		}
-
-	}
-}
