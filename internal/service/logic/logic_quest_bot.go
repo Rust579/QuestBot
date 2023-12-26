@@ -1,16 +1,18 @@
 package logic
 
+import "fmt"
+
 const (
-	// Massages types
+	// Типы ответных сообщений
 	TypeStr   = "str"
 	TypeImg   = "img"
 	TypeAudio = "audio"
 
-	// FilePaths
+	// Файлы в зависимости от этапа
 	ImgFile1   = "files/123.jpg"
 	AudioFile1 = "files/alt.mp3"
 
-	// Reference messages
+	// Сообщения Справки в зависимости от этапа
 	ReferStage1 = "Тебе нужно 111"
 	ReferStage2 = "Тебе нужно 222"
 	ReferStage3 = "Тебе нужно 333"
@@ -20,15 +22,19 @@ const (
 	ReferStage7 = "Тебе нужно 777"
 	ReferStage8 = "Тебе нужно 888"
 
-	// Response messages
-	RespOpening      = "Здарова, ты попал в квест"
-	RespDubleOpening = "Ты уже начал игру"
-	RespStage2       = "Молодец, вот тебе следующие координаты: 666"
-	RespStage3       = "stage 3"
-	RespStage4       = "stage 4"
-	RespStage5       = "Пришли координаты"
+	// Ответные сообщения
 
-	//Command from user
+	// Текст при повторном старте бота
+	RespDubleOpening = "Ты уже начал игру"
+	// Текст при первом старте бота
+	RespStage1  = "Привет, дорогой игрок\\! Подготовка к праздникам не вышла без проблем: кое\\-кто похитил подарки, включая Деда Мороза\\! Теперь ты должен использовать свои умения, решать задачи и головоломки, чтобы найти эти подарки и спасти праздник\\. Удачи\\! ☃️🎁🎅 \nПервым делом вы должны отправится по следующим координатам\\:"
+	RespStage11 = " \nВ каждой точке вам необходимо найти по 3 кода, а дальше думаю вы разберетесь сами"
+	RespStage2  = "Молодец, вот тебе следующие координаты: 666" // Начало второго этапа
+	RespStage3  = "stage 3"                                     // И т.д.
+	RespStage4  = "stage 4"
+	RespStage5  = "Пришли координаты"
+
+	// Сообщения вводимые пользователем
 	CommandStart = "start"
 	ReqReference = "Справка"
 	ReqStage2    = "2"
@@ -36,6 +42,12 @@ const (
 	ReqStage4    = "4"
 	ReqStage5    = "5"
 
+	// Координаты первой точки для юзера
+	gameLocation1 = "54.596341, 55.800177"
+	gameLocation2 = "54.000000, 55.000000"
+	gameLocation3 = "54.123456, 55.123456"
+
+	// Эталонные координаты первой точки для сравнения
 	refLat1 = 54.596341
 	refLon1 = 55.800177
 )
@@ -55,6 +67,7 @@ type RefLocation struct {
 	IncorrectMsg string
 }
 
+// Обработка сообщений от пользователя
 func ProcessMessagesText(txt string, pullStage int) RespMsg {
 
 	switch txt {
@@ -125,13 +138,14 @@ func ProcessMessagesText(txt string, pullStage int) RespMsg {
 	return RespMsg{}
 }
 
+// Обработка команд от пользователя (только латиница)
 func ProcessMessagesCommand(com string, pullStage int) RespMsg {
 
 	switch com {
 	case CommandStart:
 		if pullStage == 0 {
 			return RespMsg{
-				Message: RespOpening,
+				Message: RespStage1 + fmt.Sprintf("\n`%v`\n", gameLocation1) + fmt.Sprintf("\n`%v`\n", gameLocation2) + fmt.Sprintf("\n`%v`\n", gameLocation3) + RespStage11,
 				Type:    TypeStr,
 				Stage:   1,
 			}
@@ -146,6 +160,7 @@ func ProcessMessagesCommand(com string, pullStage int) RespMsg {
 	return RespMsg{}
 }
 
+// Обработка местоположения
 func ProcessLocation(pullStage int) RefLocation {
 
 	switch pullStage {

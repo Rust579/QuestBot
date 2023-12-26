@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
 	"tgbot/internal/model"
@@ -9,7 +8,7 @@ import (
 )
 
 const (
-	//Command
+	// Кнопки в боте
 	CommandReference = "Справка"
 )
 
@@ -54,6 +53,7 @@ func (b *Bot) initUpdatesChan() tgbotapi.UpdatesChannel {
 	return b.bot.GetUpdatesChan(u)
 }
 
+// Обработчик команд
 func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
 	numericKeyboard := tgbotapi.NewReplyKeyboard(
@@ -67,12 +67,11 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 	msg := logic.ProcessMessagesCommand(message.Command(), model.PullUsers.P[message.From.ID].Stage)
 	if msg.Stage != 0 && model.PullUsers.P[message.From.ID].Stage == 0 {
 		model.PullUsers.AddUser(message.From.ID, message.From.UserName, 1)
-
-		fmt.Println(model.PullUsers.P[message.From.ID])
 	}
 
 	msgBot := tgbotapi.NewMessage(message.From.ID, msg.Message)
 	msgBot.ReplyMarkup = numericKeyboard
+	msgBot.ParseMode = tgbotapi.ModeMarkdownV2
 
 	if _, err := b.bot.Send(msgBot); err != nil {
 		return err
@@ -81,6 +80,7 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 	return nil
 }
 
+// Обработчик сообщений
 func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 
 	for update := range updates {
@@ -102,8 +102,6 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 			msg := logic.ProcessMessagesText(update.Message.Text, model.PullUsers.P[update.Message.From.ID].Stage)
 			if msg.Stage != 0 && msg.Stage > model.PullUsers.P[update.Message.From.ID].Stage {
 				model.PullUsers.IncStage(update.Message.From.ID, msg.Stage)
-
-				fmt.Println(model.PullUsers.P[update.Message.From.ID])
 			}
 
 			if msg.Type == logic.TypeImg {
@@ -163,7 +161,6 @@ func (b *Bot) sendAudio(user *tgbotapi.Message, msg logic.RespMsg) {
 func (b *Bot) SendTxt(user *tgbotapi.Message, msg logic.RespMsg) {
 
 	msgBot := tgbotapi.NewMessage(user.From.ID, msg.Message)
-	//msgBot.ParseMode = tgbotapi.ModeMarkdownV2
 
 	if _, err := b.bot.Send(msgBot); err != nil {
 		b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + user.From.UserName + " " + err.Error()
