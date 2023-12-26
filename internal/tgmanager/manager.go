@@ -14,7 +14,7 @@ var TelegramApi *CoreTgApi
 type CoreTgApi struct {
 	bot    *tgbotapi.BotAPI
 	ChatID int64
-	msgs   chan string
+	Msgs   chan string
 }
 
 func InitTgApi(msgs chan string) error {
@@ -28,7 +28,7 @@ func InitTgApi(msgs chan string) error {
 	TelegramApi = &CoreTgApi{
 		bot:    bot,
 		ChatID: chatId,
-		msgs:   msgs,
+		Msgs:   msgs,
 	}
 
 	go TelegramApi.Start()
@@ -39,7 +39,7 @@ func InitTgApi(msgs chan string) error {
 func (b *CoreTgApi) Start() {
 
 	go func() {
-		for msg := range b.msgs {
+		for msg := range b.Msgs {
 			b.SendMsg(b.ChatID, msg)
 		}
 	}()

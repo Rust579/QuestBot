@@ -4,7 +4,7 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
-	"log"
+	"tgbot/internal/model"
 	"tgbot/internal/service/logic"
 )
 
@@ -16,7 +16,7 @@ const (
 
 type Bot struct {
 	bot  tgbotapi.BotAPI
-	msgs chan string
+	Msgs chan string
 }
 
 var BotApi Bot
@@ -30,7 +30,7 @@ func InitBotApi(msgs chan string) error {
 
 	bot.Debug = false
 	BotApi.bot = *bot
-	BotApi.msgs = msgs
+	BotApi.Msgs = msgs
 
 	// Bot Start
 	go BotApi.Start()
@@ -59,21 +59,21 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
 	numericKeyboard := tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(CommandGetCode),
-		),
-		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(CommandReference),
 		),
 	)
 
-	b.msgs <- "@" + message.From.UserName + " запустил бота"
-	fmt.Println("@" + message.From.UserName + " запустил бота")
+	b.Msgs <- "@" + message.From.UserName + " запустил бота"
 
-	msg := logic.ProcessMessagesCommand(message.Command())
+	msg := logic.ProcessMessagesCommand(message.Command(), model.PullUsers.P[message.From.ID].Stage)
+	if msg.Stage != 0 && model.PullUsers.P[message.From.ID].Stage == 0 {
+		model.PullUsers.AddUser(message.From.ID, message.From.UserName, 1)
 
-	msgBot := tgbotapi.NewMessage(message.From.ID, msg)
+		fmt.Println(model.PullUsers.P[message.From.ID])
+	}
+
+	msgBot := tgbotapi.NewMessage(message.From.ID, msg.Message)
 	msgBot.ReplyMarkup = numericKeyboard
-	//msgBot.ParseMode = tgbotapi.ModeMarkdownV2
 
 	if _, err := b.bot.Send(msgBot); err != nil {
 		return err
@@ -92,71 +92,71 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 
 		if update.Message.IsCommand() {
 			if err := b.HandleCommand(update.Message); err != nil {
-				b.msgs <- "Ошибка HandleCommand у " + "@" + update.Message.From.UserName + " " + err.Error()
+				b.Msgs <- "Ошибка HandleCommand у " + "@" + update.Message.From.UserName + " " + err.Error()
 			}
 			continue
 		}
 
-		b.msgs <- "Сообщение от " + "@" + update.Message.From.UserName + " : " + update.Message.Text
-		fmt.Println("Сообщение от " + "@" + update.Message.From.UserName + " : " + update.Message.Text)
+		b.Msgs <- "Сообщение от " + "@" + update.Message.From.UserName + ": " + update.Message.Text
 
-		msg := logic.ProcessMessagesText(update.Message.Text)
+		msg := logic.ProcessMessagesText(update.Message.Text, model.PullUsers.P[update.Message.From.ID].Stage)
+		if msg.Stage != 0 && msg.Stage > model.PullUsers.P[update.Message.From.ID].Stage {
+			model.PullUsers.IncStage(update.Message.From.ID, msg.Stage)
 
-		if msg == "файл" {
-			b.sendPhoto(update.Message.From.ID)
+			fmt.Println(model.PullUsers.P[update.Message.From.ID])
 		}
 
-		msgBot := tgbotapi.NewMessage(update.Message.From.ID, msg)
-		msgBot.ParseMode = tgbotapi.ModeMarkdownV2
-
-		if _, err := b.bot.Send(msgBot); err != nil {
-			b.msgs <- "Ошибка отправки сообщения " + "@" + update.Message.From.UserName + " " + err.Error()
+		if msg.Type == logic.TypeImg {
+			b.sendPhoto(update.Message.From, msg)
+		}
+		if msg.Type == logic.TypeAudio {
+			b.sendAudio(update.Message.From, msg)
+		}
+		if msg.Type == logic.TypeStr {
+			b.SendTxt(update.Message.From, msg)
 		}
 		continue
-
 	}
 }
 
-func (b *Bot) sendPhoto(chatId int64) {
+func (b *Bot) sendPhoto(user *tgbotapi.User, msg logic.RespMsg) {
 
-	filePath := "files/alt.mp3"
-
-	fileBytes, er := ioutil.ReadFile(filePath)
+	fileBytes, er := ioutil.ReadFile(msg.FilePath)
 	if er != nil {
-		log.Panic(er)
+		b.Msgs <- "Ошибка чтения файла фото " + "@" + user.UserName + " " + er.Error()
 	}
 
 	msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
 
-	msgBot := tgbotapi.NewPhoto(chatId, msgf)
+	msgBot := tgbotapi.NewPhoto(user.ID, msgf)
 
 	if _, err := b.bot.Send(msgBot); err != nil {
+		b.Msgs <- "Ошибка отправки фото " + "@" + user.UserName + " " + err.Error()
 	}
 
 }
 
-func (b *Bot) sendAudio(chatId int64) {
+func (b *Bot) sendAudio(user *tgbotapi.User, msg logic.RespMsg) {
 
-	filePath := "files/alt.mp3"
-
-	fileBytes, er := ioutil.ReadFile(filePath)
+	fileBytes, er := ioutil.ReadFile(msg.FilePath)
 	if er != nil {
-		log.Panic(er)
+		b.Msgs <- "Ошибка чтения файла аудио " + "@" + user.UserName + " " + er.Error()
 	}
 
 	msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
 
-	msgBot := tgbotapi.NewAudio(chatId, msgf)
+	msgBot := tgbotapi.NewAudio(user.ID, msgf)
 
 	if _, err := b.bot.Send(msgBot); err != nil {
+		b.Msgs <- "Ошибка чтения файла аудио " + "@" + user.UserName + " " + er.Error()
 	}
 
 }
 
-func (b *Bot) SendCode(ChatID int64, msg string) error {
+func (b *Bot) SendTxt(user *tgbotapi.User, msg logic.RespMsg) error {
 
-	msgBot := tgbotapi.NewMessage(ChatID, msg)
-	msgBot.ParseMode = tgbotapi.ModeMarkdownV2
+	msgBot := tgbotapi.NewMessage(user.ID, msg.Message)
+	//msgBot.ParseMode = tgbotapi.ModeMarkdownV2
 
 	if _, err := b.bot.Send(msgBot); err != nil {
 		return err
