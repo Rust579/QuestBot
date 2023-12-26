@@ -15,6 +15,10 @@ const (
 	ReferStage2 = "Тебе нужно 222"
 	ReferStage3 = "Тебе нужно 333"
 	ReferStage4 = "Тебе нужно 444"
+	ReferStage5 = "Тебе нужно 555"
+	ReferStage6 = "Тебе нужно 666"
+	ReferStage7 = "Тебе нужно 777"
+	ReferStage8 = "Тебе нужно 888"
 
 	// Response messages
 	RespOpening      = "Здарова, ты попал в квест"
@@ -22,6 +26,7 @@ const (
 	RespStage2       = "Молодец, вот тебе следующие координаты: 666"
 	RespStage3       = "stage 3"
 	RespStage4       = "stage 4"
+	RespStage5       = "Пришли координаты"
 
 	//Command from user
 	CommandStart = "start"
@@ -29,6 +34,10 @@ const (
 	ReqStage2    = "2"
 	ReqStage3    = "3"
 	ReqStage4    = "4"
+	ReqStage5    = "5"
+
+	refLat1 = 54.596341
+	refLon1 = 55.800177
 )
 
 type RespMsg struct {
@@ -37,6 +46,13 @@ type RespMsg struct {
 	FilePath     string
 	Stage        int
 	ReferenceMsg string
+}
+
+type RefLocation struct {
+	Longitude    float64
+	Latitude     float64
+	CorrectMsg   string
+	IncorrectMsg string
 }
 
 func ProcessMessagesText(txt string, pullStage int) RespMsg {
@@ -53,6 +69,14 @@ func ProcessMessagesText(txt string, pullStage int) RespMsg {
 			message = ReferStage3
 		case 4:
 			message = ReferStage4
+		case 5:
+			message = ReferStage5
+		case 6:
+			message = ReferStage6
+		case 7:
+			message = ReferStage7
+		case 8:
+			message = ReferStage8
 		}
 
 		return RespMsg{
@@ -89,6 +113,14 @@ func ProcessMessagesText(txt string, pullStage int) RespMsg {
 				Stage:    4,
 			}
 		}
+	case ReqStage5:
+		if pullStage == 4 {
+			return RespMsg{
+				Message: RespStage5,
+				Type:    TypeStr,
+				Stage:   5,
+			}
+		}
 	}
 	return RespMsg{}
 }
@@ -112,5 +144,20 @@ func ProcessMessagesCommand(com string, pullStage int) RespMsg {
 		}
 	}
 	return RespMsg{}
+}
+
+func ProcessLocation(pullStage int) RefLocation {
+
+	switch pullStage {
+	case 5:
+		return RefLocation{
+			Latitude:     refLat1,
+			Longitude:    refLon1,
+			CorrectMsg:   "Молодец! Теперь ты должен 555",
+			IncorrectMsg: "Координаты неверные",
+		}
+	}
+
+	return RefLocation{}
 
 }

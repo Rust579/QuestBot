@@ -10,7 +10,6 @@ import (
 
 const (
 	//Command
-	CommandGetCode   = "Получить код"
 	CommandReference = "Справка"
 )
 
@@ -99,67 +98,90 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 
 		b.Msgs <- "Сообщение от " + "@" + update.Message.From.UserName + ": " + update.Message.Text
 
-		msg := logic.ProcessMessagesText(update.Message.Text, model.PullUsers.P[update.Message.From.ID].Stage)
-		if msg.Stage != 0 && msg.Stage > model.PullUsers.P[update.Message.From.ID].Stage {
-			model.PullUsers.IncStage(update.Message.From.ID, msg.Stage)
+		if len(update.Message.Text) != 0 {
+			msg := logic.ProcessMessagesText(update.Message.Text, model.PullUsers.P[update.Message.From.ID].Stage)
+			if msg.Stage != 0 && msg.Stage > model.PullUsers.P[update.Message.From.ID].Stage {
+				model.PullUsers.IncStage(update.Message.From.ID, msg.Stage)
 
-			fmt.Println(model.PullUsers.P[update.Message.From.ID])
+				fmt.Println(model.PullUsers.P[update.Message.From.ID])
+			}
+
+			if msg.Type == logic.TypeImg {
+				b.sendPhoto(update.Message, msg)
+			}
+			if msg.Type == logic.TypeAudio {
+				b.sendAudio(update.Message, msg)
+			}
+			if msg.Type == logic.TypeStr {
+				b.SendTxt(update.Message, msg)
+			}
 		}
 
-		if msg.Type == logic.TypeImg {
-			b.sendPhoto(update.Message.From, msg)
+		if update.Message.Location != nil {
+			refLoc := logic.ProcessLocation(model.PullUsers.P[update.Message.From.ID].Stage)
+			b.CheckLocation(update.Message, refLoc)
 		}
-		if msg.Type == logic.TypeAudio {
-			b.sendAudio(update.Message.From, msg)
-		}
-		if msg.Type == logic.TypeStr {
-			b.SendTxt(update.Message.From, msg)
-		}
+
 		continue
 	}
 }
 
-func (b *Bot) sendPhoto(user *tgbotapi.User, msg logic.RespMsg) {
+func (b *Bot) sendPhoto(user *tgbotapi.Message, msg logic.RespMsg) {
 
 	fileBytes, er := ioutil.ReadFile(msg.FilePath)
 	if er != nil {
-		b.Msgs <- "Ошибка чтения файла фото " + "@" + user.UserName + " " + er.Error()
+		b.Msgs <- "Ошибка чтения файла фото " + "@" + user.From.UserName + " " + er.Error()
 	}
 
 	msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
 
-	msgBot := tgbotapi.NewPhoto(user.ID, msgf)
+	msgBot := tgbotapi.NewPhoto(user.From.ID, msgf)
 
 	if _, err := b.bot.Send(msgBot); err != nil {
-		b.Msgs <- "Ошибка отправки фото " + "@" + user.UserName + " " + err.Error()
+		b.Msgs <- "Ошибка отправки фото " + "@" + user.From.UserName + " " + err.Error()
 	}
 
 }
 
-func (b *Bot) sendAudio(user *tgbotapi.User, msg logic.RespMsg) {
+func (b *Bot) sendAudio(user *tgbotapi.Message, msg logic.RespMsg) {
 
 	fileBytes, er := ioutil.ReadFile(msg.FilePath)
 	if er != nil {
-		b.Msgs <- "Ошибка чтения файла аудио " + "@" + user.UserName + " " + er.Error()
+		b.Msgs <- "Ошибка чтения файла аудио " + "@" + user.From.UserName + " " + er.Error()
 	}
 
 	msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
 
-	msgBot := tgbotapi.NewAudio(user.ID, msgf)
+	msgBot := tgbotapi.NewAudio(user.From.ID, msgf)
 
 	if _, err := b.bot.Send(msgBot); err != nil {
-		b.Msgs <- "Ошибка чтения файла аудио " + "@" + user.UserName + " " + er.Error()
+		b.Msgs <- "Ошибка отправки файла аудио " + "@" + user.From.UserName + " " + er.Error()
 	}
 
 }
 
-func (b *Bot) SendTxt(user *tgbotapi.User, msg logic.RespMsg) error {
+func (b *Bot) SendTxt(user *tgbotapi.Message, msg logic.RespMsg) {
 
-	msgBot := tgbotapi.NewMessage(user.ID, msg.Message)
+	msgBot := tgbotapi.NewMessage(user.From.ID, msg.Message)
 	//msgBot.ParseMode = tgbotapi.ModeMarkdownV2
 
 	if _, err := b.bot.Send(msgBot); err != nil {
-		return err
+		b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + user.From.UserName + " " + err.Error()
 	}
-	return nil
+}
+
+func (b *Bot) CheckLocation(user *tgbotapi.Message, refLoc logic.RefLocation) {
+
+	var msgBot tgbotapi.MessageConfig
+	if user.Location.Latitude > refLoc.Latitude+0.000278 || user.Location.Latitude < refLoc.Latitude-0.000278 ||
+		user.Location.Longitude > refLoc.Longitude+0.000278 || user.Location.Longitude < refLoc.Longitude-0.000278 {
+
+		msgBot = tgbotapi.NewMessage(user.From.ID, refLoc.IncorrectMsg)
+	} else {
+		msgBot = tgbotapi.NewMessage(user.From.ID, refLoc.CorrectMsg)
+	}
+
+	if _, err := b.bot.Send(msgBot); err != nil {
+		b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + user.From.UserName + " " + err.Error()
+	}
 }
