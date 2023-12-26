@@ -139,6 +139,8 @@ func (b *Bot) sendPhoto(user *tgbotapi.Message, msg logic.RespMsg) {
 		b.Msgs <- "Ошибка отправки фото " + "@" + user.From.UserName + " " + err.Error()
 	}
 
+	b.SendTxt(user, msg)
+
 }
 
 func (b *Bot) sendAudio(user *tgbotapi.Message, msg logic.RespMsg) {
@@ -161,6 +163,7 @@ func (b *Bot) sendAudio(user *tgbotapi.Message, msg logic.RespMsg) {
 func (b *Bot) SendTxt(user *tgbotapi.Message, msg logic.RespMsg) {
 
 	msgBot := tgbotapi.NewMessage(user.From.ID, msg.Message)
+	msgBot.ParseMode = tgbotapi.ModeMarkdownV2
 
 	if _, err := b.bot.Send(msgBot); err != nil {
 		b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + user.From.UserName + " " + err.Error()
