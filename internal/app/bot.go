@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
 	"tgbot/internal/model"
@@ -10,6 +11,25 @@ import (
 const (
 	// Кнопки в боте
 	CommandReference = "Справка"
+
+	r10m  = 0.000139
+	r20m  = 0.000278
+	r40m  = 0.000556
+	r60m  = 0.000834
+	r80m  = 0.001112
+	r100m = 0.001139
+
+	msg10m    = "Отлично, вы на месте, найдите код и пришлите мне."
+	msg20m    = "До цели менее 15 метров"
+	msg40m    = "До цели менее 30 метров"
+	msg60m    = "До цели менее 60 метров"
+	msg80m    = "До цели менее 80 метров"
+	msg100m   = "До цели менее 100 метров"
+	msg10000m = "До цели более 100 метров"
+
+	// Эталонные координаты первой точки для сравнения
+	refLat1 = 54.596341
+	refLon1 = 55.800177
 )
 
 type Bot struct {
@@ -64,9 +84,10 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
 	b.Msgs <- "@" + message.From.UserName + " запустил бота"
 
-	msg := logic.ProcessMessagesCommand(message.Command(), model.PullUsers.P[message.From.ID].Stage)
-	if msg.Stage != 0 && model.PullUsers.P[message.From.ID].Stage == 0 {
-		model.PullUsers.AddUser(message.From.ID, message.From.UserName, 1)
+	msg := logic.ProcessMessagesCommand(message.Command(), model.PullUsers.Stage)
+	if msg.Stage != 0 && model.PullUsers.Stage == 0 {
+		model.PullUsers.AddUser(message.From.ID, message.From.UserName, msg.Stage)
+		fmt.Println(model.PullUsers.Stage)
 	}
 
 	msgBot := tgbotapi.NewMessage(message.From.ID, msg.Message)
@@ -99,9 +120,10 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 		b.Msgs <- "Сообщение от " + "@" + update.Message.From.UserName + ": " + update.Message.Text
 
 		if len(update.Message.Text) != 0 {
-			msg := logic.ProcessMessagesText(update.Message.Text, model.PullUsers.P[update.Message.From.ID].Stage)
-			if msg.Stage != 0 && msg.Stage > model.PullUsers.P[update.Message.From.ID].Stage {
-				model.PullUsers.IncStage(update.Message.From.ID, msg.Stage)
+			msg := logic.ProcessMessagesText(update.Message.Text, model.PullUsers.Stage)
+			if msg.Stage != 0 && msg.Stage > model.PullUsers.Stage {
+				model.PullUsers.IncStage(msg.Stage)
+				fmt.Println(model.PullUsers.Stage)
 			}
 
 			if msg.Type == logic.TypeImg {
@@ -115,9 +137,8 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 			}
 		}
 
-		if update.Message.Location != nil {
-			refLoc := logic.ProcessLocation(model.PullUsers.P[update.Message.From.ID].Stage)
-			b.CheckLocation(update.Message, refLoc)
+		if update.Message.Location != nil && model.PullUsers.Stage == 2 {
+			b.CheckLocation(update.Message)
 		}
 
 		continue
@@ -170,15 +191,43 @@ func (b *Bot) SendTxt(user *tgbotapi.Message, msg logic.RespMsg) {
 	}
 }
 
-func (b *Bot) CheckLocation(user *tgbotapi.Message, refLoc logic.RefLocation) {
+func (b *Bot) CheckLocation(user *tgbotapi.Message) {
 
 	var msgBot tgbotapi.MessageConfig
-	if user.Location.Latitude > refLoc.Latitude+0.000278 || user.Location.Latitude < refLoc.Latitude-0.000278 ||
-		user.Location.Longitude > refLoc.Longitude+0.000278 || user.Location.Longitude < refLoc.Longitude-0.000278 {
 
-		msgBot = tgbotapi.NewMessage(user.From.ID, refLoc.IncorrectMsg)
-	} else {
-		msgBot = tgbotapi.NewMessage(user.From.ID, refLoc.CorrectMsg)
+	usLat := user.Location.Latitude
+	usLon := user.Location.Longitude
+	refLat := refLat1
+	refLon := refLon1
+
+	if usLat < refLat+r10m && usLat > refLat-r10m &&
+		usLon < refLon+r10m && usLon > refLon-r10m {
+
+		msgBot = tgbotapi.NewMessage(user.From.ID, msg10m)
+	} else if usLat < refLat+r20m && usLat > refLat-r20m &&
+		usLon < refLon+r20m && usLon > refLon-r20m {
+
+		msgBot = tgbotapi.NewMessage(user.From.ID, msg20m)
+	} else if usLat < refLat+r40m && usLat > refLat-r40m &&
+		usLon < refLon+r40m && usLon > refLon-r40m {
+
+		msgBot = tgbotapi.NewMessage(user.From.ID, msg40m)
+	} else if usLat < refLat+r60m && usLat > refLat-r60m &&
+		usLon < refLon+r60m && usLon > refLon-r60m {
+
+		msgBot = tgbotapi.NewMessage(user.From.ID, msg60m)
+	} else if usLat < refLat+r80m && usLat > refLat-r80m &&
+		usLon < refLon+r80m && usLon > refLon-r80m {
+
+		msgBot = tgbotapi.NewMessage(user.From.ID, msg80m)
+	} else if usLat < refLat+r100m && usLat > refLat-r100m &&
+		usLon < refLon+r100m && usLon > refLon-r100m {
+
+		msgBot = tgbotapi.NewMessage(user.From.ID, msg100m)
+	} else if usLat > refLat+r100m || usLat < refLat-r100m ||
+		usLon > refLon+r100m || usLon < refLon-r100m {
+
+		msgBot = tgbotapi.NewMessage(user.From.ID, msg10000m)
 	}
 
 	if _, err := b.bot.Send(msgBot); err != nil {
