@@ -4,6 +4,7 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
+	"strconv"
 	"tgbot/internal/model"
 	"tgbot/internal/service/logic"
 )
@@ -19,7 +20,7 @@ const (
 	r80m  = 0.001112
 	r100m = 0.001139
 
-	msg10m    = "Раз два три четыре пять я иду штурвал считать."
+	//msg10m    = "Раз два три четыре пять я иду штурвал считать."
 	msg20m    = "Горячо"
 	msg40m    = "Очень тепло"
 	msg60m    = "Тепло"
@@ -123,11 +124,14 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 			msg := logic.ProcessMessagesText(update.Message.Text, model.PullUsers.Stage)
 			if msg.Stage != 0 && msg.Stage > model.PullUsers.Stage {
 				model.PullUsers.IncStage(msg.Stage)
-				fmt.Println(model.PullUsers.Stage)
+				b.Msgs <- "Игроки начали этап " + strconv.Itoa(model.PullUsers.Stage)
 			}
 
 			if msg.Type == logic.TypeImg {
 				b.sendPhoto(update.Message, msg)
+			}
+			if msg.Type == logic.TypeImgs {
+				b.sendPhotos(update.Message, msg)
 			}
 			if msg.Type == logic.TypeAudio {
 				b.sendAudio(update.Message, msg)
@@ -164,6 +168,26 @@ func (b *Bot) sendPhoto(user *tgbotapi.Message, msg logic.RespMsg) {
 
 }
 
+func (b *Bot) sendPhotos(user *tgbotapi.Message, msg logic.RespMsg) {
+
+	b.SendTxt(user, msg)
+
+	for _, im := range msg.Images {
+		fileBytes, er := ioutil.ReadFile(im)
+		if er != nil {
+			b.Msgs <- "Ошибка чтения файла фото " + "@" + user.From.UserName + " " + er.Error()
+		}
+
+		msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
+
+		msgBot := tgbotapi.NewPhoto(user.From.ID, msgf)
+
+		if _, err := b.bot.Send(msgBot); err != nil {
+			b.Msgs <- "Ошибка отправки фото " + "@" + user.From.UserName + " " + err.Error()
+		}
+	}
+}
+
 func (b *Bot) sendAudio(user *tgbotapi.Message, msg logic.RespMsg) {
 
 	fileBytes, er := ioutil.ReadFile(msg.FilePath)
@@ -171,7 +195,7 @@ func (b *Bot) sendAudio(user *tgbotapi.Message, msg logic.RespMsg) {
 		b.Msgs <- "Ошибка чтения файла аудио " + "@" + user.From.UserName + " " + er.Error()
 	}
 
-	msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
+	msgf := tgbotapi.FileBytes{Name: msg.FileName, Bytes: fileBytes}
 
 	msgBot := tgbotapi.NewAudio(user.From.ID, msgf)
 
@@ -200,14 +224,12 @@ func (b *Bot) CheckLocation(user *tgbotapi.Message) {
 	refLat := refLat1
 	refLon := refLon1
 
-	if usLat < refLat+r10m && usLat > refLat-r10m &&
-		usLon < refLon+r10m && usLon > refLon-r10m {
-
-		msgBot = tgbotapi.NewMessage(user.From.ID, msg10m)
-	} else if usLat < refLat+r20m && usLat > refLat-r20m &&
+	if usLat < refLat+r20m && usLat > refLat-r20m &&
 		usLon < refLon+r20m && usLon > refLon-r20m {
 
-		msgBot = tgbotapi.NewMessage(user.From.ID, msg20m)
+		b.sendAudio(user, logic.RespMsg{FilePath: logic.AudioFileShturval, FileName: logic.AudioFileShturvalName})
+		return
+
 	} else if usLat < refLat+r40m && usLat > refLat-r40m &&
 		usLon < refLon+r40m && usLon > refLon-r40m {
 
