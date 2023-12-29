@@ -85,11 +85,16 @@ func (b *Bot) HandleCommand(message *tgbotapi.Message) error {
 
 	b.Msgs <- "@" + message.From.UserName + " запустил бота"
 
-	msg := logic.ProcessMessagesCommand(message.Command(), model.PullUsers.Stage)
-	if msg.Stage != 0 && model.PullUsers.Stage == 0 {
+	msg := logic.ProcessMessagesCommand(message.Command(), message, model.PullUsers.Stage)
+
+	_, err := model.PullUsers.GetUser(message.From.UserName)
+
+	if err != nil {
 		model.PullUsers.AddUser(message.From.ID, message.From.UserName, msg.Stage)
-		fmt.Println(model.PullUsers.Stage)
 	}
+
+	fmt.Println(model.PullUsers.Stage)
+	fmt.Println(model.PullUsers.P)
 
 	msgBot := tgbotapi.NewMessage(message.From.ID, msg.Message)
 	msgBot.ReplyMarkup = numericKeyboard
@@ -137,7 +142,7 @@ func (b *Bot) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 				b.sendAudio(update.Message, msg)
 			}
 			if msg.Type == logic.TypeStr {
-				b.SendTxt(update.Message, msg)
+				b.SendTxtEveryOne(update.Message, msg)
 			}
 		}
 
@@ -158,32 +163,68 @@ func (b *Bot) sendPhoto(user *tgbotapi.Message, msg logic.RespMsg) {
 
 	msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
 
-	msgBot := tgbotapi.NewPhoto(user.From.ID, msgf)
+	userIds := model.PullUsers.GetAllUserIds()
 
-	if _, err := b.bot.Send(msgBot); err != nil {
-		b.Msgs <- "Ошибка отправки фото " + "@" + user.From.UserName + " " + err.Error()
-	}
+	if msg.ReferenceStartMsg != logic.ReqReference {
+		for _, userId := range userIds {
+			msgBot := tgbotapi.NewPhoto(userId, msgf)
 
-	b.SendTxt(user, msg)
+			if _, err := b.bot.Send(msgBot); err != nil {
+				b.Msgs <- "Ошибка отправки фото " + "@" + user.From.UserName + " " + err.Error()
+			}
 
-}
-
-func (b *Bot) sendPhotos(user *tgbotapi.Message, msg logic.RespMsg) {
-
-	b.SendTxt(user, msg)
-
-	for _, im := range msg.Images {
-		fileBytes, er := ioutil.ReadFile(im)
-		if er != nil {
-			b.Msgs <- "Ошибка чтения файла фото " + "@" + user.From.UserName + " " + er.Error()
+			b.SendTxt(userId, msg)
 		}
-
-		msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
-
+	} else {
 		msgBot := tgbotapi.NewPhoto(user.From.ID, msgf)
 
 		if _, err := b.bot.Send(msgBot); err != nil {
 			b.Msgs <- "Ошибка отправки фото " + "@" + user.From.UserName + " " + err.Error()
+		}
+
+		b.SendTxt(user.From.ID, msg)
+	}
+}
+
+func (b *Bot) sendPhotos(user *tgbotapi.Message, msg logic.RespMsg) {
+
+	userIds := model.PullUsers.GetAllUserIds()
+
+	if msg.ReferenceStartMsg != logic.ReqReference {
+		for _, userId := range userIds {
+			b.SendTxt(userId, msg)
+
+			for _, im := range msg.Images {
+				fileBytes, er := ioutil.ReadFile(im)
+				if er != nil {
+					b.Msgs <- "Ошибка чтения файла фото " + "@" + user.From.UserName + " " + er.Error()
+				}
+
+				msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
+
+				msgBot := tgbotapi.NewPhoto(userId, msgf)
+
+				if _, err := b.bot.Send(msgBot); err != nil {
+					b.Msgs <- "Ошибка отправки фото " + "@" + user.From.UserName + " " + err.Error()
+				}
+			}
+		}
+	} else {
+		b.SendTxt(user.From.ID, msg)
+
+		for _, im := range msg.Images {
+			fileBytes, er := ioutil.ReadFile(im)
+			if er != nil {
+				b.Msgs <- "Ошибка чтения файла фото " + "@" + user.From.UserName + " " + er.Error()
+			}
+
+			msgf := tgbotapi.FileBytes{Name: "111", Bytes: fileBytes}
+
+			msgBot := tgbotapi.NewPhoto(user.From.ID, msgf)
+
+			if _, err := b.bot.Send(msgBot); err != nil {
+				b.Msgs <- "Ошибка отправки фото " + "@" + user.From.UserName + " " + err.Error()
+			}
 		}
 	}
 }
@@ -197,21 +238,55 @@ func (b *Bot) sendAudio(user *tgbotapi.Message, msg logic.RespMsg) {
 
 	msgf := tgbotapi.FileBytes{Name: msg.FileName, Bytes: fileBytes}
 
-	msgBot := tgbotapi.NewAudio(user.From.ID, msgf)
+	userIds := model.PullUsers.GetAllUserIds()
 
-	if _, err := b.bot.Send(msgBot); err != nil {
-		b.Msgs <- "Ошибка отправки файла аудио " + "@" + user.From.UserName + " " + er.Error()
+	if msg.ReferenceStartMsg != logic.ReqReference {
+		for _, userId := range userIds {
+			msgBot := tgbotapi.NewAudio(userId, msgf)
+
+			if _, err := b.bot.Send(msgBot); err != nil {
+				b.Msgs <- "Ошибка отправки файла аудио " + "@" + user.From.UserName + " " + er.Error()
+			}
+		}
+	} else {
+		msgBot := tgbotapi.NewAudio(user.From.ID, msgf)
+
+		if _, err := b.bot.Send(msgBot); err != nil {
+			b.Msgs <- "Ошибка отправки файла аудио " + "@" + user.From.UserName + " " + er.Error()
+		}
 	}
-
 }
 
-func (b *Bot) SendTxt(user *tgbotapi.Message, msg logic.RespMsg) {
+func (b *Bot) SendTxt(userId int64, msg logic.RespMsg) {
 
-	msgBot := tgbotapi.NewMessage(user.From.ID, msg.Message)
+	msgBot := tgbotapi.NewMessage(userId, msg.Message)
 	msgBot.ParseMode = tgbotapi.ModeMarkdownV2
 
 	if _, err := b.bot.Send(msgBot); err != nil {
-		b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + user.From.UserName + " " + err.Error()
+		b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + strconv.Itoa(int(userId)) + " " + err.Error()
+	}
+}
+
+func (b *Bot) SendTxtEveryOne(user *tgbotapi.Message, msg logic.RespMsg) {
+
+	userIds := model.PullUsers.GetAllUserIds()
+
+	if msg.ReferenceStartMsg != logic.ReqReference {
+		for _, userId := range userIds {
+			msgBot := tgbotapi.NewMessage(userId, msg.Message)
+			msgBot.ParseMode = tgbotapi.ModeMarkdownV2
+
+			if _, err := b.bot.Send(msgBot); err != nil {
+				b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + user.From.UserName + " " + err.Error()
+			}
+		}
+	} else {
+		msgBot := tgbotapi.NewMessage(user.From.ID, msg.Message)
+		msgBot.ParseMode = tgbotapi.ModeMarkdownV2
+
+		if _, err := b.bot.Send(msgBot); err != nil {
+			b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + user.From.UserName + " " + err.Error()
+		}
 	}
 }
 

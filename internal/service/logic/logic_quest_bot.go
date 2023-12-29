@@ -2,7 +2,9 @@ package logic
 
 import (
 	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"strings"
+	"tgbot/internal/model"
 )
 
 const (
@@ -31,7 +33,7 @@ const (
 	// Ответные сообщения
 
 	// Текст при повторном старте бота
-	RespDubleOpening = "Ты уже начал игру"
+	RespDubleOpening = "Вы уже начали игру"
 
 	RespStage1  = "Не доброго вечера вам\\! Поздравляю, вы даже не заметили как пропал ваш друг, а с ним и все подарки\\.\n\nЧтобы спасти друга и подарки, вы должны использовать свои мозги и ловкость, если сможете, конечно☠️☠️☠️\\. И помните, чем дольше вы действуете, тем сильнее замерзает ваш друг🥶🥶🥶\\. Удачи\\!\n\nПервым делом вы должны отправится по следующим координатам\\:"
 	RespStage11 = " \n_Координаты копируются кликом\\. \nСоберите из всех точек один код_ 💀 🧱 ⚡️\\."
@@ -75,13 +77,13 @@ const (
 )
 
 type RespMsg struct {
-	Message      string
-	Type         string
-	FilePath     string
-	FileName     string
-	Stage        int
-	ReferenceMsg string
-	Images       []string
+	Message           string
+	Type              string
+	FilePath          string
+	FileName          string
+	Stage             int
+	ReferenceStartMsg string
+	Images            []string
 }
 
 // Обработка сообщений от пользователя
@@ -95,69 +97,79 @@ func ProcessMessagesText(txt string, pullStage int) RespMsg {
 		switch pullStage {
 		case 1:
 			return RespMsg{
-				Message: RespStage1 + fmt.Sprintf("\n\n`%v`\n", gameLocTochka1) + fmt.Sprintf("\n`%v`\n", gameLocTochka2) + fmt.Sprintf("\n`%v`\n", gameLocTochka3) + RespStage11,
-				Type:    TypeStr,
-				Stage:   1,
+				Message:           RespStage1 + fmt.Sprintf("\n\n`%v`\n", gameLocTochka1) + fmt.Sprintf("\n`%v`\n", gameLocTochka2) + fmt.Sprintf("\n`%v`\n", gameLocTochka3) + RespStage11,
+				Type:              TypeStr,
+				Stage:             1,
+				ReferenceStartMsg: ReqReference,
 			}
 		case 2:
 			return RespMsg{
-				Message:  RespStage2,
-				Type:     TypeImg,
-				FilePath: ImgFileOblast,
-				Stage:    2,
+				Message:           RespStage2,
+				Type:              TypeImg,
+				FilePath:          ImgFileOblast,
+				Stage:             2,
+				ReferenceStartMsg: ReqReference,
 			}
 		case 3:
 			return RespMsg{
-				Message: RespStage3 + fmt.Sprintf("\n\n`%v`\n", gameLocMagaz),
-				Type:    TypeStr,
-				Stage:   3,
+				Message:           RespStage3 + fmt.Sprintf("\n\n`%v`\n", gameLocMagaz),
+				Type:              TypeStr,
+				Stage:             3,
+				ReferenceStartMsg: ReqReference,
 			}
 		case 4:
 			return RespMsg{
-				Message:  RespStage4,
-				Type:     TypeImg,
-				FilePath: ImgFileKrDom,
-				Stage:    4,
+				Message:           RespStage4,
+				Type:              TypeImg,
+				FilePath:          ImgFileKrDom,
+				Stage:             4,
+				ReferenceStartMsg: ReqReference,
 			}
 		case 5:
 			return RespMsg{
 				//Message:  RespStage4,
-				Type:     TypeAudio,
-				FilePath: AudioFileDedMoroz,
-				FileName: AudioFileDedMorozName,
-				Stage:    5,
+				Type:              TypeAudio,
+				FilePath:          AudioFileDedMoroz,
+				FileName:          AudioFileDedMorozName,
+				Stage:             5,
+				ReferenceStartMsg: ReqReference,
 			}
 		case 6:
 			return RespMsg{
-				Message: RespStage6,
-				Type:    TypeStr,
-				Stage:   6,
+				Message:           RespStage6,
+				Type:              TypeStr,
+				Stage:             6,
+				ReferenceStartMsg: ReqReference,
 			}
 		case 7:
 			return RespMsg{
-				Message: RespStage7NePidor,
-				Type:    TypeImgs,
-				Stage:   7,
-				Images:  []string{ImgNews4, ImgNews1, ImgNews7, ImgNews5, ImgNews2, ImgNews6, ImgNews3},
+				Message:           RespStage7NePidor,
+				Type:              TypeImgs,
+				Stage:             7,
+				Images:            []string{ImgNews4, ImgNews1, ImgNews7, ImgNews5, ImgNews2, ImgNews6, ImgNews3},
+				ReferenceStartMsg: ReqReference,
 			}
 		case 8:
 			return RespMsg{
-				Message: RespStage8,
-				Type:    TypeStr,
-				Stage:   8,
+				Message:           RespStage8,
+				Type:              TypeStr,
+				Stage:             8,
+				ReferenceStartMsg: ReqReference,
 			}
 		case 9:
 			return RespMsg{
-				Message: RespStage9,
-				Type:    TypeStr,
-				Stage:   9,
+				Message:           RespStage9,
+				Type:              TypeStr,
+				Stage:             9,
+				ReferenceStartMsg: ReqReference,
 			}
 		}
 
 		return RespMsg{
-			Message: message,
-			Type:    TypeStr,
-			Stage:   0,
+			Message:           message,
+			Type:              TypeStr,
+			Stage:             0,
+			ReferenceStartMsg: ReqReference,
 		}
 
 	case ReqStage1:
@@ -251,21 +263,25 @@ func ProcessMessagesText(txt string, pullStage int) RespMsg {
 }
 
 // Обработка команд от пользователя (только латиница)
-func ProcessMessagesCommand(com string, pullStage int) RespMsg {
+func ProcessMessagesCommand(com string, msg *tgbotapi.Message, pullStage int) RespMsg {
+
+	_, err := model.PullUsers.GetUser(msg.From.UserName)
 
 	switch com {
 	case CommandStart:
-		if pullStage == 0 {
+		if err != nil {
 			return RespMsg{
-				Message: RespStage1 + fmt.Sprintf("\n\n`%v`\n", gameLocTochka1) + fmt.Sprintf("\n`%v`\n", gameLocTochka2) + fmt.Sprintf("\n`%v`\n", gameLocTochka3) + RespStage11,
-				Type:    TypeStr,
-				Stage:   1,
+				Message:           RespStage1 + fmt.Sprintf("\n\n`%v`\n", gameLocTochka1) + fmt.Sprintf("\n`%v`\n", gameLocTochka2) + fmt.Sprintf("\n`%v`\n", gameLocTochka3) + RespStage11,
+				Type:              TypeStr,
+				Stage:             1,
+				ReferenceStartMsg: CommandStart,
 			}
 		} else {
 			return RespMsg{
-				Message: RespDubleOpening,
-				Type:    TypeStr,
-				Stage:   1,
+				Message:           RespDubleOpening,
+				Type:              TypeStr,
+				Stage:             1,
+				ReferenceStartMsg: CommandStart,
 			}
 		}
 	}
