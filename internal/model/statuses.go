@@ -13,6 +13,11 @@ type Pull struct {
 	Stage int
 }
 
+type SendTo struct {
+	ChatId int64
+	Msg    string
+}
+
 func (p *Pull) AddUser(chatId int64, name string, stage int) {
 	p.Lock()
 	p.P[name] = chatId

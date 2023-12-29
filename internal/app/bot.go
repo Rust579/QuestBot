@@ -4,6 +4,7 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"io/ioutil"
+	"log"
 	"strconv"
 	"tgbot/internal/model"
 	"tgbot/internal/service/logic"
@@ -34,13 +35,14 @@ const (
 )
 
 type Bot struct {
-	bot  tgbotapi.BotAPI
-	Msgs chan string
+	bot    tgbotapi.BotAPI
+	Msgs   chan string
+	SendTo chan model.SendTo
 }
 
 var BotApi Bot
 
-func InitBotApi(msgs chan string) error {
+func InitBotApi(msgs chan string, sendTo chan model.SendTo) error {
 
 	bot, err := tgbotapi.NewBotAPI("6583722718:AAE9b84iNSj_YHFEOBad1P_8my7IgwyD7gg")
 	if err != nil {
@@ -50,6 +52,7 @@ func InitBotApi(msgs chan string) error {
 	bot.Debug = false
 	BotApi.bot = *bot
 	BotApi.Msgs = msgs
+	BotApi.SendTo = sendTo
 
 	// Bot Start
 	go BotApi.Start()
@@ -59,6 +62,16 @@ func InitBotApi(msgs chan string) error {
 }
 
 func (b *Bot) Start() {
+
+	go func() {
+		log.Println("start reading Send to")
+		for st := range b.SendTo {
+			err := b.SendMsg(st.ChatId, st.Msg)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+	}()
 
 	updates := b.initUpdatesChan()
 	b.HandleUpdates(updates)
@@ -288,6 +301,17 @@ func (b *Bot) SendTxtEveryOne(user *tgbotapi.Message, msg logic.RespMsg) {
 			b.Msgs <- "Ошибка отправки текстового сообщения " + "@" + user.From.UserName + " " + err.Error()
 		}
 	}
+}
+
+func (b *Bot) SendMsg(ChatID int64, input string) error {
+
+	msg := tgbotapi.NewMessage(ChatID, input)
+	//msg.ParseMode = tgbotapi.ModeMarkdownV2
+
+	if _, err := b.bot.Send(msg); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *Bot) CheckLocation(user *tgbotapi.Message) {

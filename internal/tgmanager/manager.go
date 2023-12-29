@@ -2,10 +2,11 @@ package tgmanager
 
 import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
+	"strings"
+	"tgbot/internal/model"
 )
 
-const CommandStart = "start"
-const CommandGetCode = "cas"
 const token = "6694897672:AAEkkL38aHyei2_YkeOYN47D12bgwMkGIHA"
 const chatId = -4081879081
 
@@ -15,9 +16,10 @@ type CoreTgApi struct {
 	bot    *tgbotapi.BotAPI
 	ChatID int64
 	Msgs   chan string
+	SendTo chan model.SendTo
 }
 
-func InitTgApi(msgs chan string) error {
+func InitTgApi(msgs chan string, sendTo chan model.SendTo) error {
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return err
@@ -29,6 +31,7 @@ func InitTgApi(msgs chan string) error {
 		bot:    bot,
 		ChatID: chatId,
 		Msgs:   msgs,
+		SendTo: sendTo,
 	}
 
 	go TelegramApi.Start()
@@ -66,45 +69,46 @@ func (b *CoreTgApi) HandleUpdates(updates tgbotapi.UpdatesChannel) {
 			continue
 		}
 
-		if update.Message.IsCommand() {
-			if err := b.HandleCommand(update.Message); err != nil {
+		if update.Message.Text != "" {
+			text := strings.Split(update.Message.Text, " ")
+			if len(text) >= 3 && text[0] == "send" {
+				alias := text[1]
+				msg := strings.Join(text[2:], " ")
+
+				if alias == "all" {
+					usersIds := model.PullUsers.GetAllUserIds()
+					if len(usersIds) == 0 {
+						err := b.SendMsg(update.Message.From.ID, "can not send to "+alias+": not in pulls")
+						if err != nil {
+							log.Println("Can not send msg to chat")
+						}
+						continue
+					}
+					for _, cid := range usersIds {
+						b.SendTo <- model.SendTo{
+							ChatId: cid,
+							Msg:    msg,
+						}
+					}
+					continue
+				}
+
+				userChatId, err := model.PullUsers.GetUser(alias)
+				if err != nil {
+					err = b.SendMsg(update.Message.From.ID, "can not send to "+alias+": not in pulls")
+					if err != nil {
+						log.Println("Can not send msg to chat")
+					}
+					continue
+				}
+
+				b.SendTo <- model.SendTo{
+					ChatId: userChatId,
+					Msg:    msg,
+				}
 			}
-			continue
-		}
-
-		if update.Message.Text == CommandGetCode {
-
-			msg := tgbotapi.NewMessage(b.ChatID, "MessageAlreadyExist")
-			msg.ParseMode = tgbotapi.ModeMarkdownV2
-
-			if _, err := b.bot.Send(msg); err != nil {
-			}
-			continue
-
 		}
 	}
-}
-
-func (b *CoreTgApi) HandleCommand(message *tgbotapi.Message) error {
-
-	numericKeyboard := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(CommandGetCode),
-		),
-	)
-	if message.Command() == CommandStart {
-
-		msg := tgbotapi.NewMessage(b.ChatID, "Здарова")
-		msg.ReplyMarkup = numericKeyboard
-		msg.ParseMode = tgbotapi.ModeMarkdownV2
-
-		if _, err := b.bot.Send(msg); err != nil {
-			return err
-
-		}
-	}
-
-	return nil
 }
 
 func (b *CoreTgApi) SendMsg(ChatID int64, input string) error {
